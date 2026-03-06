@@ -3,9 +3,6 @@ set -euo pipefail
 
 [[ $EUID -eq 0 ]] || { echo “Run as root”; exit 1; }
 
-read -rp “Remove all NEURON hardening? [y/N] “ c
-[[ “${c,,}” == “y” ]] || exit 0
-
 # Stop services
 
 systemctl stop neuron-sentinel neuron-aide.timer neuron-aide 2>/dev/null || true
@@ -46,17 +43,16 @@ for f in sysctl.conf fstab; do
 done
 [[ -f “$BACKUP/etc/default/grub” ]] && cp -a “$BACKUP/etc/default/grub” /etc/default/grub
 [[ -f “$BACKUP/etc/security/pwquality.conf” ]] && cp -a “$BACKUP/etc/security/pwquality.conf” /etc/security/pwquality.conf
-echo “Backups restored from $BACKUP”
 fi
 
-# Reload what we can now
+# Reload services
 
 sysctl –system > /dev/null 2>&1 || true
 systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null || true
 systemctl reload fail2ban 2>/dev/null || true
 command -v augenrules &>/dev/null && augenrules –load > /dev/null 2>&1 || true
 
-# Rebuild initramfs (module blacklist removal)
+# Rebuild initramfs
 
 if command -v update-initramfs &>/dev/null; then
 update-initramfs -u -k all > /dev/null 2>&1
@@ -73,10 +69,6 @@ fi
 
 # Remove data
 
-read -rp “Delete logs and forensic data? [y/N] “ d
-[[ “${d,,}” == “y” ]] && rm -rf /var/lib/neuron /var/log/neuron /run/neuron
-
-read -rp “Delete /etc/neuron and all backups? [y/N] “ e
-[[ “${e,,}” == “y” ]] && rm -rf /etc/neuron
+rm -rf /var/lib/neuron /var/log/neuron /run/neuron /etc/neuron
 
 echo “Done. Reboot to complete removal.”
